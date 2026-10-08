@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>오늘의 운세</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Song+Myung&family=Noto+Serif+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-top:#fdf0e6; --bg-bot:#f1e8fb;
+    --panel:#ffffff;
+    --gold:#d9942a; --gold-soft:#f6b94a;
+    --violet:#8b5cf6; --violet-soft:#a97bf0;
+    --coral:#f2665b;
+    --ink:#2e2a3d; --ink-dim:#716b86;
+    --line:rgba(139,92,246,0.22);
+    --result-tint: var(--gold-soft);
+    --radius:18px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100%; }
+  body{
+    background:linear-gradient(180deg, var(--bg-top), var(--bg-bot) 60%);
+    color:var(--ink);
+    font-family:"Noto Serif KR", serif;
+    font-size:17px;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    overflow-x:hidden;
+  }
+  #sparkle{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+  #sparkle span{
+    position:absolute; display:block; border-radius:50%;
+    opacity:0.5; animation:twinkle 4.5s ease-in-out infinite;
+  }
+  @keyframes twinkle{ 0%,100%{opacity:0.25; transform:scale(1);} 50%{opacity:0.9; transform:scale(1.5);} }
+  @media (prefers-reduced-motion: reduce){ #sparkle span{ animation:none; } }
+
+  .wrap{ position:relative; z-index:1; max-width:640px; margin:0 auto; padding:52px 22px 90px; }
+
+  header.hero{ text-align:center; margin-bottom:40px; }
+  .mark{ font-size:1.8rem; margin-bottom:10px; }
+  h1.title{
+    font-family:"Song Myung", serif; font-weight:400;
+    font-size:clamp(2rem, 7vw, 2.7rem);
+    color:var(--violet); margin:0 0 12px;
+  }
+  p.subtitle{ color:var(--ink-dim); font-size:1.05rem; line-height:1.8; margin:0 auto; max-width:420px; }
+
+  .card{
+    background:var(--panel);
+    border:1.5px solid var(--line);
+    border-radius:var(--radius);
+    padding:32px 26px;
+    box-shadow:0 20px 40px -24px rgba(139,92,246,0.35);
+  }
+
+  .field{ margin-bottom:24px; }
+  label.field-label{ display:block; font-size:0.95rem; color:var(--violet); font-weight:600; margin-bottom:10px; }
+
+  input[type="text"]{
+    width:100%; border:1.5px solid var(--line); border-radius:10px;
+    padding:14px 16px; font-family:"Noto Serif KR", serif; font-size:1.08rem;
+    color:var(--ink); outline:none; background:#fffdfb;
+  }
+  input[type="text"]:focus{ border-color:var(--gold); }
+
+  .date-row, .choice-row{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  select{
+    width:100%; border:1.5px solid var(--line); border-radius:10px;
+    padding:12px 8px; font-family:"Noto Serif KR", serif; font-size:1rem;
+    color:var(--ink); background:#fffdfb; outline:none;
+  }
+  select:focus{ border-color:var(--gold); }
+
+  .chip-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .chip-grid.g3{ grid-template-columns:repeat(3,1fr); }
+  .choice-card{
+    border:1.5px solid var(--line); border-radius:12px; padding:14px 10px;
+    text-align:center; cursor:pointer; background:#fffdfb; transition:all 0.2s ease;
+  }
+  .choice-card .glyph{ font-size:1.5rem; display:block; margin-bottom:6px; }
+  .choice-card .name{ font-size:0.98rem; color:var(--ink-dim); }
+  .choice-card.selected{ border-color:var(--gold); background:rgba(246,185,74,0.16); box-shadow:0 0 0 1px var(--gold) inset; }
+  .choice-card.selected .name{ color:var(--gold); font-weight:600; }
+
+  button.submit{
+    width:100%; margin-top:30px; padding:17px; border-radius:12px; border:none;
+    background:linear-gradient(135deg, var(--violet), var(--gold-soft));
+    color:#fff; font-family:"Song Myung", serif; font-size:1.15rem; letter-spacing:0.04em;
+    cursor:pointer; box-shadow:0 14px 28px -12px rgba(139,92,246,0.55);
+  }
+  button.submit:disabled{ opacity:0.5; }
+  .error-msg{ color:var(--coral); font-size:0.9rem; text-align:center; margin-top:12px; min-height:1.2em; }
+
+  .loading{ display:none; text-align:center; padding:50px 0 8px; color:var(--ink-dim); font-size:1rem; }
+  .loading.active{ display:block; }
+  .rune{ display:inline-block; width:15px; height:15px; border-radius:50%; border:2px solid var(--violet); border-top-color:transparent; animation:spin 1s linear infinite; margin-right:10px; vertical-align:middle; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .result{ position:relative; display:none; margin-top:32px; }
+  .result.reveal{ display:block; }
+  .burst{
+    position:absolute; left:50%; top:0; width:10px; height:10px; margin-left:-5px;
+    border-radius:50%; background:var(--result-tint); opacity:0.8; pointer-events:none;
+    animation:burstOut 0.7s ease-out forwards;
+  }
+  @keyframes burstOut{ to{ width:640px; height:640px; margin-left:-320px; top:-280px; opacity:0; } }
+  .result-inner{ position:relative; opacity:0; transform:scale(0.92); }
+  .result.reveal .result-inner{ animation:popIn 0.55s cubic-bezier(.26,1.4,.4,1) 0.1s forwards; }
+  @keyframes popIn{ to{ opacity:1; transform:scale(1); } }
+  @media (prefers-reduced-motion: reduce){
+    .burst{ display:none; }
+    .result-inner{ opacity:1; transform:none; animation:none; }
+  }
+
+  .result-card{
+    border:1.5px solid var(--line); border-radius:var(--radius);
+    background:linear-gradient(165deg, color-mix(in srgb, var(--result-tint) 18%, white), #ffffff 55%);
+    padding:34px 26px;
+  }
+  .result-name{ text-align:center; font-family:"Song Myung", serif; color:var(--violet); font-size:1.4rem; margin:0 0 6px; }
+  .result-sub{ text-align:center; color:var(--ink-dim); font-size:0.92rem; margin:0 0 26px; }
+  .divider{ height:1px; background:linear-gradient(90deg, transparent, var(--line), transparent); margin:22px 0; }
+  .section-label{ font-size:0.9rem; color:var(--gold); font-weight:700; margin-bottom:8px; }
+  .section-body{ font-size:1.1rem; line-height:1.9; }
+  .lucky-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .lucky-chip{ flex:1; min-width:130px; border:1.5px solid var(--line); border-radius:14px; padding:16px; text-align:center; background:#fffdfb; }
+  .swatch{ width:30px; height:30px; border-radius:50%; margin:0 auto 8px; border:2px solid #fff; box-shadow:0 0 0 1.5px var(--line); }
+  .num{ font-family:"Song Myung", serif; font-size:1.8rem; color:var(--violet); }
+  .caption{ font-size:0.85rem; color:var(--ink-dim); margin-top:6px; }
+  .cheer{ margin-top:26px; text-align:center; font-style:italic; color:var(--violet); font-size:1.08rem; line-height:1.8; }
+  .again{ display:block; margin:28px auto 0; background:none; border:none; color:var(--ink-dim); text-decoration:underline; cursor:pointer; font-family:"Noto Serif KR", serif; font-size:0.92rem; }
+
+  footer{ text-align:center; margin-top:56px; color:#b3a9c9; font-size:0.82rem; }
+</style>
+</head>
+<body>
+
+<div id="sparkle"></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="mark">✨</div>
+    <h1 class="title">오늘의 운세</h1>
+    <p class="subtitle">이름과 정보를 알려주시면<br>오늘 하루를 위한 따뜻한 운세를 전해드려요.</p>
+  </header>
+
+  <section class="card" id="formCard">
+    <div class="field">
+      <label class="field-label" for="nameInput">이름</label>
+      <input type="text" id="nameInput" placeholder="이름을 적어주세요">
+    </div>
+
+    <div class="field">
+      <label class="field-label">생년월일</label>
+      <div class="date-row">
+        <select id="yearSel"></select>
+        <select id="monthSel"></select>
+        <select id="daySel"></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">성별</label>
+      <div class="chip-grid g3" id="genderGrid">
+        <div class="choice-card" data-value="남성"><span class="glyph">♂</span><span class="name">남성</span></div>
+        <div class="choice-card" data-value="여성"><span class="glyph">♀</span><span class="name">여성</span></div>
+        <div class="choice-card" data-value="비공개"><span class="glyph">○</span><span class="name">비공개</span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">태어난 시간대 (선택)</label>
+      <select id="timeSel" style="width:100%;">
+        <option value="모름">모름</option>
+        <option value="새벽(0~6시)">새벽 (0~6시)</option>
+        <option value="아침(6~12시)">아침 (6~12시)</option>
+        <option value="오후(12~18시)">오후 (12~18시)</option>
+        <option value="저녁(18~24시)">저녁 (18~24시)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label class="field-label">지금 가장 마음이 쓰이는 것은</label>
+      <div class="chip-grid" id="concernGrid">
+        <div class="choice-card" data-value="연애"><span class="glyph">♡</span><span class="name">연애</span></div>
+        <div class="choice-card" data-value="재물"><span class="glyph">◈</span><span class="name">재물</span></div>
+        <div class="choice-card" data-value="학업"><span class="glyph">✦</span><span class="name">학업</span></div>
+        <div class="choice-card" data-value="건강"><span class="glyph">☘</span><span class="name">건강</span></div>
+      </div>
+    </div>
+
+    <button class="submit" id="submitBtn">운세 보기</button>
+    <div class="error-msg" id="errorMsg"></div>
+  </section>
+
+  <div class="loading" id="loadingBox"><span class="rune"></span>오늘의 기운을 읽고 있어요…</div>
+
+  <div class="result" id="resultBox">
+    <div class="burst" id="burstEl"></div>
+    <div class="result-inner">
+      <div class="result-card" id="resultCard">
+        <p class="result-name" id="resName"></p>
+        <p class="result-sub" id="resSub"></p>
+        <div class="section-label">오늘의 총평</div>
+        <div class="section-body" id="resSummary"></div>
+        <div class="divider"></div>
+        <div class="section-label" id="resCategoryLabel">분야별 운세</div>
+        <div class="section-body" id="resCategory"></div>
+        <div class="divider"></div>
+        <div class="section-label">행운의 요소</div>
+        <div class="lucky-row">
+          <div class="lucky-chip"><div class="swatch" id="luckySwatch"></div><div class="caption" id="luckyColorName">색</div></div>
+          <div class="lucky-chip"><div class="num" id="luckyNumber">-</div><div class="caption">숫자</div></div>
+        </div>
+        <p class="cheer" id="resCheer"></p>
+        <button class="again" id="againBtn">다시 운세 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>이 운세는 위로와 응원을 전하기 위한 이야기입니다</footer>
+</div>
+
+<script>
+  // 반짝임 배경
+  (function initSparkle(){
+    const c = document.getElementById('sparkle');
+    const colors = ['#f6b94a','#a97bf0','#f2665b'];
+    for(let i=0;i<50;i++){
+      const s = document.createElement('span');
+      s.style.left = Math.random()*100+'%';
+      s.style.top = Math.random()*100+'%';
+      const size = (Math.random()*3+2).toFixed(1);
+      s.style.width = size+'px'; s.style.height = size+'px';
+      s.style.background = colors[i%colors.length];
+      s.style.animationDelay = (Math.random()*4).toFixed(2)+'s';
+      s.style.animationDuration = (3.5+Math.random()*3).toFixed(2)+'s';
+      c.appendChild(s);
+    }
+  })();
+
+  // 날짜 셀렉트 채우기
+  (function initDate(){
+    const now = new Date();
+    const yearSel = document.getElementById('yearSel');
+    const monthSel = document.getElementById('monthSel');
+    const daySel = document.getElementById('daySel');
+    for(let y=now.getFullYear(); y>=1940; y--){
+      const o = document.createElement('option'); o.value=y; o.textContent=y+'년'; yearSel.appendChild(o);
+    }
+    for(let m=1;m<=12;m++){ const o=document.createElement('option'); o.value=m; o.textContent=m+'월'; monthSel.appendChild(o); }
+    for(let d=1;d<=31;d++){ const o=document.createElement('option'); o.value=d; o.textContent=d+'일'; daySel.appendChild(o); }
+  })();
+
+  function makeChoiceGroup(gridId, setter){
+    const grid = document.getElementById(gridId);
+    grid.addEventListener('click', (e)=>{
+      const card = e.target.closest('.choice-card');
+      if(!card) return;
+      [...grid.children].forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      setter(card.dataset.value);
+    });
+  }
+  let selectedConcern = null, selectedGender = null;
+  makeChoiceGroup('concernGrid', v=>selectedConcern=v);
+  makeChoiceGroup('genderGrid', v=>selectedGender=v);
+
+  const nameInput = document.getElementById('nameInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const loadingBox = document.getElementById('loadingBox');
+  const resultBox = document.getElementById('resultBox');
+  const formCard = document.getElementById('formCard');
+
+  const COLOR_MAP = {
+    "버건디":"#7a2e3a","코발트블루":"#1f5fb0","올리브그린":"#6f7a35","머스타드":"#d4a017",
+    "라일락":"#b99ce0","에메랄드":"#1f9d74","코랄":"#f2665b","테라코타":"#c06b4a",
+    "아이보리":"#f1e9d8","네이비":"#1f2a52","로즈골드":"#d98a8a","민트":"#5fc9a8",
+    "스카이블루":"#5fa8e0","샴페인":"#e8d2a0","플럼":"#7a4a7a","보라":"#8b5cf6",
+    "금색":"#d9942a","붉은":"#c0493f","초록":"#4e9b5a","분홍":"#e091a8","하늘색":"#5fa8e0"
+  };
+  function colorToHex(name){
+    if(!name) return "#d9942a";
+    for(const key in COLOR_MAP){ if(name.includes(key)) return COLOR_MAP[key]; }
+    return "#8b5cf6";
+  }
+
+  const THEMES = ["물","바람","빛","흙","별","달","불꽃","나무"];
+
+  function localFallback(seedStr, concern){
+    let seed = 0;
+    for(let i=0;i<seedStr.length;i++) seed = (seed*31 + seedStr.charCodeAt(i)) >>> 0;
+    const rand = (n)=>{ seed=(seed*1103515245+12345)>>>0; return seed % n; };
+
+    const summaries = [
+      "오늘은 마음속 작은 불씨가 조용히 밝아지는 날입니다. 서두르지 않아도 좋은 흐름이 곁에 머물러요.",
+      "구름 사이로 볕이 드는 것처럼, 막혔던 일이 슬며시 풀려가는 기운이 느껴집니다.",
+      "당신이 지나온 시간들이 오늘의 든든한 뿌리가 되어줄 거예요.",
+      "작은 우연이 반가운 소식으로 이어질 수 있는 하루입니다.",
+      "평소보다 직감이 또렷해지는 날, 마음이 이끄는 쪽으로 가보세요.",
+      "차분히 정리한 생각이 오늘 누군가에게 힘이 되어줄 거예요."
+    ];
+    const categoryLines = {
+      "연애": [
+        "가까운 인연과의 대화 속에서 따뜻한 진심이 오갈 수 있는 날입니다.",
+        "혼자만의 시간을 아끼는 것도 사랑을 지키는 방법입니다.",
+        "작은 오해는 먼저 건네는 말 한마디로 풀릴 수 있어요.",
+        "새로운 인연의 기운이 조용히 다가오고 있습니다."
+      ],
+      "재물": [
+        "작은 절제가 오늘은 큰 여유로 돌아옵니다.",
+        "성급한 결정보다는 차분히 지켜보는 편이 이롭습니다.",
+        "예상치 못한 작은 수입이나 기회가 생길 수 있어요.",
+        "꾸준함이 오늘 재물운의 가장 든든한 씨앗이 됩니다."
+      ],
+      "학업": [
+        "짧게라도 몰입하는 시간이 큰 성취로 이어집니다.",
+        "어제의 노력이 오늘의 이해로 이어지는 순간이 찾아옵니다.",
+        "궁금했던 부분이 뜻밖에 쉽게 풀리는 날입니다.",
+        "집중이 흐트러지기 쉬우니 짧은 휴식을 사이에 두세요."
+      ],
+      "건강": [
+        "몸이 보내는 작은 신호에 귀 기울이면 더 가벼운 하루를 보낼 수 있어요.",
+        "충분한 휴식이 오늘의 가장 큰 보약입니다.",
+        "가벼운 산책이 마음까지 맑게 해줄 거예요.",
+        "무리한 일정보다는 속도를 늦추는 편이 이롭습니다."
+      ]
+    };
+    const colors = Object.keys(COLOR_MAP);
+    const cheers = [
+      "당신의 하루에 별빛 같은 응원을 보냅니다.",
+      "지금의 걸음이 결국 좋은 곳으로 이어질 거예요.",
+      "오늘도 당신을 조용히 응원합니다.",
+      "작은 행운들이 당신 곁에 머물기를 바라요."
+    ];
+    const catList = categoryLines[concern] || categoryLines["건강"];
+    return {
+      summary: summaries[rand(summaries.length)],
+      category_fortune: catList[rand(catList.length)],
+      lucky_color: colors[rand(colors.length)],
+      lucky_number: (rand(9)+1).toString(),
+      message: cheers[rand(cheers.length)]
+    };
+  }
+
+  function buildPrompt(name, birth, gender, time, concern){
+    const theme = THEMES[Math.floor(Math.random()*THEMES.length)];
+    return [
+      "당신은 따뜻하고 친절한 운세 상담가입니다.",
+      "아래 정보를 바탕으로 긍정적이고 희망적인 운세를 작성하세요. 매번 표현과 비유를 다채롭게 바꿔, 뻔하지 않고 생생한 문장을 쓰세요.",
+      "오늘의 은은한 기운 키워드(직접 언급하지 않아도 되며, 분위기에만 살짝 녹여주세요): " + theme,
+      "",
+      "이름: " + name,
+      "생년월일: " + birth,
+      "성별: " + (gender || "비공개"),
+      "태어난 시간대: " + (time || "모름"),
+      "고민 분야: " + concern,
+      "",
+      "다음 JSON 형식으로만, 다른 설명 없이 응답하세요:",
+      '{"summary":"오늘의 운세 총평 (2문장 내외)","category_fortune":"' + concern + ' 분야 운세 (2문장)","lucky_color":"구체적인 색 이름 한 단어 (예: 버건디, 코발트블루, 올리브그린, 머스타드, 에메랄드 등)","lucky_number":"행운의 숫자 (한 자리 또는 두 자리)","message":"응원의 메시지 (1문장)"}'
+    ].join("\n");
+  }
+
+  function renderResult(name, concern, data){
+    document.getElementById('resName').textContent = name + '님을 위한 오늘의 운세';
+    document.getElementById('resSub').textContent = concern + ' 이야기를 중심으로 전해드려요';
+    document.getElementById('resSummary').textContent = data.summary;
+    document.getElementById('resCategoryLabel').textContent = concern + ' 운세';
+    document.getElementById('resCategory').textContent = data.category_fortune;
+    const hex = colorToHex(data.lucky_color);
+    document.getElementById('luckySwatch').style.background = hex;
+    document.getElementById('luckyColorName').textContent = data.lucky_color;
+    document.getElementById('luckyNumber').textContent = data.lucky_number;
+    document.getElementById('resCheer').textContent = '"' + data.message + '"';
+    document.getElementById('resultCard').style.setProperty('--result-tint', hex);
+    document.documentElement.style.setProperty('--result-tint', hex);
+
+    resultBox.classList.remove('reveal');
+    void resultBox.offsetWidth;
+    resultBox.classList.add('reveal');
+  }
+
+  let sampleFn = null;
+  (async () => {
+    try{ if(window.claude && window.claude.use){ sampleFn = await window.claude.use("sample"); } }
+    catch(e){ sampleFn = null; }
+  })();
+
+  function todayKey(){
+    const d = new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    errorMsg.textContent = '';
+    const name = nameInput.value.trim();
+    const y = document.getElementById('yearSel').value;
+    const m = document.getElementById('monthSel').value;
+    const d = document.getElementById('daySel').value;
+    const time = document.getElementById('timeSel').value;
+
+    if(!name){ errorMsg.textContent = '이름을 적어주세요.'; return; }
+    if(!y || !m || !d){ errorMsg.textContent = '생년월일을 선택해주세요.'; return; }
+    if(!selectedGender){ errorMsg.textContent = '성별을 선택해주세요.'; return; }
+    if(!selectedConcern){ errorMsg.textContent = '고민 분야를 하나 골라주세요.'; return; }
+
+    const birth = y+'-'+m+'-'+d;
+    const cacheKey = 'fortune:'+[name,birth,selectedGender,time,selectedConcern,todayKey()].join('|');
+
+    try{
+      const cached = localStorage.getItem(cacheKey);
+      if(cached){
+        renderResult(name, selectedConcern, JSON.parse(cached));
+        resultBox.scrollIntoView({behavior:'smooth', block:'start'});
+        return;
+      }
+    }catch(e){ /* storage unavailable, continue */ }
+
+    submitBtn.disabled = true;
+    loadingBox.classList.add('active');
+    resultBox.classList.remove('reveal');
+
+    let data = null;
+    if(sampleFn){
+      try{
+        const parsed = await sampleFn.json(buildPrompt(name, birth, selectedGender, time, selectedConcern), { modelTier:"quick" });
+        if(parsed && parsed.summary && parsed.category_fortune && parsed.lucky_color && parsed.lucky_number && parsed.message){
+          data = parsed;
+        }
+      }catch(e){ data = null; }
+    }
+    if(!data){
+      data = localFallback(name+birth+selectedGender+time+selectedConcern+todayKey(), selectedConcern);
+    }
+
+    try{ localStorage.setItem(cacheKey, JSON.stringify(data)); }catch(e){ /* ignore */ }
+
+    loadingBox.classList.remove('active');
+    submitBtn.disabled = false;
+    renderResult(name, selectedConcern, data);
+    resultBox.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+
+  document.getElementById('againBtn').addEventListener('click', () => {
+    resultBox.classList.remove('reveal');
+    formCard.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+</script>
+
+</body>
+</html>
